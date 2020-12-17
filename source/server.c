@@ -21,7 +21,53 @@ enum errors {
     ERR_LISTEN,
 };
 
- 
+int init_socket(int port);
+int run_binary(char *path, int client_socket, char **argv);
+int read_string(int fd, char **string);
+void header_send(int client_socket, char *type, int len);
+char** divide(char *str, char *delimiter);
+int get_file_size(int fd);
+int get_answer(char *arr[], int client_socket, char *post_string);
+void for_client(int client_socket) ;
+
+int main(int argc, char** argv) {
+    int port, server_socket;
+    struct sockaddr_in client_address;
+    socklen_t size = sizeof client_address;
+    if (argc != 2) {
+        puts("Incorrect args.");
+        puts("./server <port>");
+        puts("Example:");
+        puts("./server 5000");
+        return ERR_INCORRECT_ARGS;
+    }
+    port = atoi(argv[1]);
+    server_socket = init_socket(port);
+    int *client_socket = NULL;
+    int clients_num = 0;
+    pid_t pid = 0;
+    while (1) {
+        waitpid(-1, NULL, WNOHANG);
+        client_socket = realloc(client_socket, (clients_num + 1) * sizeof(int));
+        client_socket[clients_num] = accept
+        (
+            server_socket,
+            (struct sockaddr *) &client_address,
+            &size
+        );
+        pid = fork();
+        if (pid == 0) {
+            for_client(client_socket[clients_num]);
+            free(client_socket);
+            return OK;
+        } 
+        close(client_socket[clients_num]);
+        clients_num++;
+    }
+    waitpid(-1, NULL, WNOHANG);
+    return OK;
+}
+
 int init_socket(int port) {
     int server_socket, socket_option = 1;
     struct sockaddr_in server_address;
@@ -57,6 +103,20 @@ int init_socket(int port) {
     return server_socket;
 }
 
+int run_binary(char *path, int client_socket, char **argv) {
+    if (fork() == 0) {
+        dup2(client_socket, 1);
+        close(client_socket);
+        if(execv(path, argv) < 0) {
+            perror("exec error");
+            exit(1);
+        }
+        exit(0);
+    }
+    wait(NULL);
+    return 0;
+}
+
 int read_string(int fd, char **string) {
     char *str = NULL;
     char ch;
@@ -82,25 +142,19 @@ int read_string(int fd, char **string) {
     return status;
 } 
 
-int get_file_size(int fd) {
-    struct stat stat_struct;
-    if (fstat(fd, &stat_struct) == -1)
-        return (1);
-    return (int) stat_struct.st_size;
-}
-
-int run_binary(char *path, int client_socket, char **argv) {
-    if (fork() == 0) {
-        dup2(client_socket, 1);
-        close(client_socket);
-        if(execv(path, argv) < 0) {
-            perror("exec error");
-            exit(1);
-        }
-        exit(0);
-    }
-    wait(NULL);
-    return 0;
+void header_send(int client_socket, char *type, int len) {
+    char *str3 = "HTTP/1.1 200\r\n";
+    char *str1 = "Сontent-type: ";
+    char *str2 = "Сontent-length: ";
+    char str4[10];
+    snprintf(str4, 10, "%d", len);
+    write(client_socket, str3, strlen(str3) * sizeof(char));
+    write(client_socket, str1, strlen(str1) * sizeof(char));   
+    write(client_socket, type, strlen(type) * sizeof(char));
+    write(client_socket, "\r\n", 2 * sizeof(char));
+    write(client_socket, str2, strlen(str2) * sizeof(char));
+    write(client_socket, str4, strlen(str4) * sizeof(char));
+    write(client_socket, "\r\n\r\n", 4 * sizeof(char));
 }
 
 char** divide(char *str, char *delimiter) {
@@ -120,19 +174,12 @@ char** divide(char *str, char *delimiter) {
     return words;
 }
 
-void header_send(int client_socket, char *type, int len) {
-    char *str3 = "HTTP/1.1 200\r\n";
-    char *str1 = "Сontent-type: ";
-    char *str2 = "Сontent-length: ";
-    char str4[10];
-    snprintf(str4, 10, "%d", len);
-    write(client_socket, str3, strlen(str3) * sizeof(char));
-    write(client_socket, str1, strlen(str1) * sizeof(char));   
-    write(client_socket, type, strlen(type) * sizeof(char));
-    write(client_socket, "\r\n", 2 * sizeof(char));
-    write(client_socket, str2, strlen(str2) * sizeof(char));
-    write(client_socket, str4, strlen(str4) * sizeof(char));
-    write(client_socket, "\r\n\r\n", 4 * sizeof(char));
+
+int get_file_size(int fd) {
+    struct stat stat_struct;
+    if (fstat(fd, &stat_struct) == -1)
+        return (1);
+    return (int) stat_struct.st_size;
 }
 
 int get_answer(char *arr[], int client_socket, char *post_string) {
@@ -234,6 +281,7 @@ int get_answer(char *arr[], int client_socket, char *post_string) {
     return 0;
 } 
 
+
 void for_client(int client_socket) {
     char **arr = NULL, **words;
     char *str = NULL;
@@ -272,42 +320,4 @@ void for_client(int client_socket) {
         }
     }
     
-}
-
-int main(int argc, char** argv) {
-    int port, server_socket;
-    struct sockaddr_in client_address;
-    socklen_t size = sizeof client_address;
-    if (argc != 2) {
-        puts("Incorrect args.");
-        puts("./server <port>");
-        puts("Example:");
-        puts("./server 5000");
-        return ERR_INCORRECT_ARGS;
-    }
-    port = atoi(argv[1]);
-    server_socket = init_socket(port);
-    int *client_socket = NULL;
-    int clients_num = 0;
-    pid_t pid = 0;
-    while (1) {
-        waitpid(-1, NULL, WNOHANG);
-        client_socket = realloc(client_socket, (clients_num + 1) * sizeof(int));
-        client_socket[clients_num] = accept
-        (
-            server_socket,
-            (struct sockaddr *) &client_address,
-            &size
-        );
-        pid = fork();
-        if (pid == 0) {
-            for_client(client_socket[clients_num]);
-            free(client_socket);
-            return OK;
-        } 
-        close(client_socket[clients_num]);
-        clients_num++;
-    }
-    waitpid(-1, NULL, WNOHANG);
-    return OK;
 }
