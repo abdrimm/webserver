@@ -1,0 +1,19 @@
+body {
+    background-image:url(/multimedia/men.jpg);
+}
+
+#test{
+    background-color:#fff;
+    color:#333;
+    padding: 75px;
+    margin: 15px;
+    border: 10px solid #2F3841;
+    border-radius: 100px;
+    opacity: 0.9;
+    box-shadow: 10px 10px 10px #2F3841;
+    width: 100%;
+    height: 100px;
+    text-align: center;
+    font-size: 30px;
+    font-weight: 800;
+}
