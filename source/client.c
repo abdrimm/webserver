@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,6 +9,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <string.h>
+
 enum errors {
     OK,
     ERR_INCORRECT_ARGS,
@@ -43,23 +43,32 @@ int init_socket(const char *ip, int port) {
     return server_socket;
 }
  
-int readStr(int fd, char **string) {
+int read_string(int fd, char **string) {
     char *str = NULL;
-    char c;
-    int i = 0, status;
-    while (((status = read(fd, &c, sizeof(char))) > 0) && (c != '\0')) {
-        if (i % 16 == 0) {
-            str = realloc(str, 16 * ((i / 16) + 1) * sizeof(char));
+    char ch;
+    int i = 0, value;
+    while (1) {
+        value = read(fd, &ch, sizeof(char)); 
+        if(value <= 0) {
+            break;
         }
-        str[i] = c;
+        if(ch == '\r') {
+            break;
+        }
+        if(ch == '\n') {
+            continue;
+        }
+        str = realloc(str, (i + 1) * sizeof(char));
+        str[i] = ch;
         i++;
     }
     str = realloc(str, (i + 1) * sizeof(char));
     str[i] = '\0';
     *string = str;
-    return status;
-}
-void writeStr(int fd, char *string) {
+    return value;
+} 
+
+void write_string(int fd, char *string) {
     int i = 0;
     char ch;
     while (string[i] != '\0') {
@@ -79,12 +88,12 @@ int main(void) {
     char *arr[6] = {"GET", " ", "HTTP/1.1\r", "Host:", " ", "\r"};
     char *str[6] = {NULL};
     int len = 0;
-    char  *strtokAnswer = NULL;
+    char  *strtok_ans = NULL;
     char *str1 = "HTTP/1.1 404\n";
     char *str2 = "HTTP/1.1\n";
     char *string = NULL;
     char *str3 = "http://";
-    char *requestArr[4];
+    char *request_array[4];
     fgets(request, 256, stdin);
     while (strcmp(request, "exit\n") != 0) {
         i = 0;
@@ -92,33 +101,33 @@ int main(void) {
             puts("Enter correct request");
             fgets(request, 256, stdin);
         }
-        strtokAnswer = strtok(request, ":/");
-        while((strtokAnswer != NULL) && (i != 4)) {
-            requestArr[i] = strtokAnswer;
+        strtok_ans = strtok(request, ":/");
+        while((strtok_ans != NULL) && (i != 4)) {
+            request_array[i] = strtok_ans;
             
             if (i == 2) {
-                strtokAnswer = strtok(NULL, "\n");
+                strtok_ans = strtok(NULL, "\n");
             } else {
-                strtokAnswer = strtok(NULL, ":/");
+                strtok_ans = strtok(NULL, ":/");
             }
             i++;
         }
-        arr[1] = requestArr[3];
-        arr[4] = requestArr[1];
-        server = init_socket(requestArr[1], atoi(requestArr[2]));
+        arr[1] = request_array[3];
+        arr[4] = request_array[1];
+        server = init_socket(request_array[1], atoi(request_array[2]));
         for(int i = 0; i < 6; i++) {
-            writeStr(server, arr[i]);
+            write_string(server, arr[i]);
             puts(arr[i]);
         }
-        readStr(server, &str[0]);
+        read_string(server, &str[0]);
         if ((strcmp(str[0], str1) != 0) && (strcmp(str[0], str2) != 0)) {
-            readStr(server, &str[1]);
-            readStr(server, &str[2]);
-            readStr(server, &str[3]);
-            readStr(server, &str[4]);
+            read_string(server, &str[1]);
+            read_string(server, &str[2]);
+            read_string(server, &str[3]);
+            read_string(server, &str[4]);
             read(server, &len, sizeof(int));
-            readStr(server, &str[5]);
-            readStr(server, &string);
+            read_string(server, &str[5]);
+            read_string(server, &string);
             printf("%s%s%s%s%s%d%s%s\n", str[0], str[1], str[2], str[3], str[4], len, str[5], string);
         } else {
             printf("%s\n", str[0]);
@@ -127,7 +136,7 @@ int main(void) {
         arr[4] = NULL;
         fgets(request, 256, stdin);
     }
-    server = init_socket(requestArr[1], atoi(requestArr[2]));
+    server = init_socket(request_array[1], atoi(request_array[2]));
     close(server);
     return OK;
 }
