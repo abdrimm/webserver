@@ -56,16 +56,8 @@ int init_socket(int port) {
     }
     return server_socket;
 }
- 
-int isEndLine(char ch) {
-    return ch == '\r';
-}
 
-int isEmptyChar(char ch) {
-    return ch == '\n';
-}
-
-int readStr(int fd, char **string) {
+int read_string(int fd, char **string) {
     char *str = NULL;
     char ch;
     int i = 0, status;
@@ -74,10 +66,10 @@ int readStr(int fd, char **string) {
         if(status <= 0) {
             break;
         }
-        if(isEndLine(ch)) {
+        if(ch == '\r') {
             break;
         }
-        if(isEmptyChar(ch)) {
+        if(ch == '\n') {
             continue;
         }
         str = realloc(str, (i + 1) * sizeof(char));
@@ -111,16 +103,16 @@ int run_binary(char *path, int client_socket, char **argv) {
     return 0;
 }
 
-char** split(char *str, char *delimiter) {
+char** divide(char *str, char *delimiter) {
     int i = 0;
-    char  *strtokAnswer = NULL;
+    char  *strtok_ans = NULL;
     char **words = NULL;
-    strtokAnswer = strtok(str, delimiter);
-    while(strtokAnswer != NULL) {
+    strtok_ans = strtok(str, delimiter);
+    while(strtok_ans != NULL) {
         words = realloc(words, (i + 1) * sizeof(char *));
-        words[i] = strtokAnswer;
+        words[i] = strtok_ans;
         puts(words[i]);
-        strtokAnswer = strtok(NULL, delimiter);
+        strtok_ans = strtok(NULL, delimiter);
         i++;
     }
     words = realloc(words, (i + 1) * sizeof(char *));
@@ -128,7 +120,7 @@ char** split(char *str, char *delimiter) {
     return words;
 }
 
-void sendHeader(int client_socket, char *type, int len) {
+void header_send(int client_socket, char *type, int len) {
     char *str3 = "HTTP/1.1 200\r\n";
     char *str1 = "Сontent-type: ";
     char *str2 = "Сontent-length: ";
@@ -143,7 +135,7 @@ void sendHeader(int client_socket, char *type, int len) {
     write(client_socket, "\r\n\r\n", 4 * sizeof(char));
 }
 
-int requestAnswer(char *arr[], int client_socket, char *postStr) {
+int get_answer(char *arr[], int client_socket, char *post_string) {
     struct stat stat;
     char *del = "=&";
     char *error = "<html><h1>Error 404<h1><html>\r\n";
@@ -152,29 +144,27 @@ int requestAnswer(char *arr[], int client_socket, char *postStr) {
     char *str3 = "text/html";
     char *str4 = "image/png";
     char *str5 = "image/jpg";
-    char *str6 = "image/gif";
-    char *str7 = "text/css";
-    char *str8 = "video/mp4";
+    char *str6 = "text/css";
     char **argv = NULL;
     char *type = NULL;
     char *string = NULL;
     char *query = NULL;
-    char **queryArr = NULL;
+    char **query_array = NULL;
     struct stat stat_buf;
     off_t offset = 0;
-    int fd = 0, len = 0, i = 0, argvIndex = 1, queryArrIndex = 0;
+    int fd = 0, len = 0, i = 0, argv_index = 1, query_array_index = 0;
     char ch;
-    argv = realloc(argv, (argvIndex + 1) * sizeof(char *));
+    argv = realloc(argv, (argv_index + 1) * sizeof(char *));
     argv[0] = arr[1];
     if (strcmp(arr[0], "POST") == 0) {
-        queryArr = split(postStr, del);
-        while(queryArr[queryArrIndex] != NULL) {
-            argv = realloc(argv, (argvIndex + 1) * sizeof(char *));
-            argv[argvIndex] = queryArr[queryArrIndex];
-            queryArrIndex++;
-            argvIndex++;
+        query_array = divide(post_string, del);
+        while(query_array[query_array_index] != NULL) {
+            argv = realloc(argv, (argv_index + 1) * sizeof(char *));
+            argv[argv_index] = query_array[query_array_index];
+            query_array_index++;
+            argv_index++;
         }
-        argv = realloc(argv, (argvIndex + 1) * sizeof(char *));
+        argv = realloc(argv, (argv_index + 1) * sizeof(char *));
     }
     if ((strcmp(arr[0], "GET")) != 0 && (strcmp(arr[0], "POST") != 0)) {
         write(client_socket, str1, strlen(str1) * sizeof(char));
@@ -185,16 +175,16 @@ int requestAnswer(char *arr[], int client_socket, char *postStr) {
     if ((query = strchr(arr[1], '?')) != NULL) {
         query[0] = '\0';
         query++;
-        queryArr = split(query, del);
-        while(queryArr[queryArrIndex] != NULL) {
-            argv = realloc(argv, (argvIndex + 1) * sizeof(char *));
-            argv[argvIndex] = queryArr[queryArrIndex];
-            queryArrIndex++;
-            argvIndex++;
+        query_array = divide(query, del);
+        while(query_array[query_array_index] != NULL) {
+            argv = realloc(argv, (argv_index + 1) * sizeof(char *));
+            argv[argv_index] = query_array[query_array_index];
+            query_array_index++;
+            argv_index++;
         }
-        argv = realloc(argv, (argvIndex + 1) * sizeof(char *));
+        argv = realloc(argv, (argv_index + 1) * sizeof(char *));
     }
-    argv[argvIndex] = NULL;
+    argv[argv_index] = NULL;
     if ((type = strchr(arr[1], '.')) == NULL) {
         type = "bin";
     } else if((strstr(arr[1], ".png")) != NULL) {
@@ -203,13 +193,9 @@ int requestAnswer(char *arr[], int client_socket, char *postStr) {
         type = str3;
     } else if((strstr(arr[1], ".jpg")) != NULL) {
         type = str5;
-    } else if((strstr(arr[1], ".gif")) != NULL) {
-        type = str6;
     } else if((strstr(arr[1], ".css")) != NULL) {
-        type = str7;
-    } else if((strstr(arr[1], ".mp4")) != NULL) {
-        type = str8;
-    }
+        type = str6;
+    } 
     if (strcmp(arr[2], str2) != 0) {
         write(client_socket, str1, strlen(str1) * sizeof(char));
         write(client_socket, error, strlen(error) * sizeof(char));
@@ -232,15 +218,14 @@ int requestAnswer(char *arr[], int client_socket, char *postStr) {
     if (S_ISDIR(stat.st_mode)) {
         type = "dir";
     }
-    sendHeader(client_socket, type, len);
+    header_send(client_socket, type, len);
     if (strcmp(type, "bin") == 0) {
         run_binary(arr[1], client_socket, argv);
     } else if (strcmp(type, str3) == 0) {
-        readStr(fd, &string);
+        read_string(fd, &string);
         write(client_socket, string, strlen(string) * sizeof(char));
     } else if(strcmp(type, str4) == 0 || (strcmp(type, str5) == 0) ||
-        (strcmp(type, str6) == 0) || (strcmp(type, str7) == 0 ) ||
-        (strcmp(type, str8) == 0 )) {
+        (strcmp(type, str6) == 0)) {
         fstat (fd, &stat_buf);
         sendfile (client_socket, fd, &offset, stat_buf.st_size);
     }
@@ -249,21 +234,21 @@ int requestAnswer(char *arr[], int client_socket, char *postStr) {
     return 0;
 } 
 
-void doforClient(int client_socket) {
+void for_client(int client_socket) {
     char **arr = NULL, **words;
     char *str = NULL;
     char *del = " ";
     char ch;
-    char *postStr = NULL;
+    char *post_string = NULL;
     int ret = 0, strings = 0;
     while (1) {
         while (1) {
-            ret = readStr(client_socket, &str);
+            ret = read_string(client_socket, &str);
             printf("%d:", strings);
             if(strcmp(str, "") == 0) {
                 read(client_socket, &ch, 1);
                 fcntl(client_socket, F_SETFL, O_NONBLOCK);
-                readStr(client_socket, &postStr);
+                read_string(client_socket, &post_string);
                 fcntl(client_socket, F_SETFL, !O_NONBLOCK);
                 break;
             }
@@ -274,8 +259,8 @@ void doforClient(int client_socket) {
             str = NULL;
         }
         if (arr != NULL) {
-            words = split(arr[0] , del);
-            requestAnswer(words, client_socket, postStr);
+            words = divide(arr[0] , del);
+            get_answer(words, client_socket, post_string);
             for(int i = 0; i < strings; i++) {
                 free(arr[i]);
             }
@@ -303,12 +288,12 @@ int main(int argc, char** argv) {
     port = atoi(argv[1]);
     server_socket = init_socket(port);
     int *client_socket = NULL;
-    int clientNum = 0;
+    int clients_num = 0;
     pid_t pid = 0;
     while (1) {
         waitpid(-1, NULL, WNOHANG);
-        client_socket = realloc(client_socket, (clientNum + 1) * sizeof(int));
-        client_socket[clientNum] = accept
+        client_socket = realloc(client_socket, (clients_num + 1) * sizeof(int));
+        client_socket[clients_num] = accept
         (
             server_socket,
             (struct sockaddr *) &client_address,
@@ -316,14 +301,13 @@ int main(int argc, char** argv) {
         );
         pid = fork();
         if (pid == 0) {
-            doforClient(client_socket[clientNum]);
+            for_client(client_socket[clients_num]);
             free(client_socket);
             return OK;
         } 
-        close(client_socket[clientNum]);
-        clientNum++;
+        close(client_socket[clients_num]);
+        clients_num++;
     }
     waitpid(-1, NULL, WNOHANG);
     return OK;
 }
-
