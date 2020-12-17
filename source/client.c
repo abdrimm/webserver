@@ -16,68 +16,11 @@ enum errors {
     ERR_SOCKET,
     ERR_CONNECT
 };
- 
-int init_socket(const char *ip, int port) {
-    int server_socket = socket(AF_INET, SOCK_STREAM, 0);
-    struct hostent *host = gethostbyname(ip);
-    struct sockaddr_in server_address;
- 
-    //open socket, result is socket descriptor
-    if (server_socket < 0) {
-        perror("Fail: open socket");
-        exit(ERR_SOCKET);
-    }
- 
-    //prepare server address
-    server_address.sin_family = AF_INET;
-    server_address.sin_port = htons(port);
-    memcpy(&server_address.sin_addr, host -> h_addr_list[0],
-           (socklen_t) sizeof server_address.sin_addr);
- 
-    //connection
-    if (connect(server_socket, (struct sockaddr*) &server_address,
-        (socklen_t) sizeof server_address) < 0) {
-        perror("Fail: connect");
-        exit(ERR_CONNECT);
-    }
-    return server_socket;
-}
- 
-int read_string(int fd, char **string) {
-    char *str = NULL;
-    char ch;
-    int i = 0, value;
-    while (1) {
-        value = read(fd, &ch, sizeof(char)); 
-        if(value <= 0) {
-            break;
-        }
-        if(ch == '\r') {
-            break;
-        }
-        if(ch == '\n') {
-            continue;
-        }
-        str = realloc(str, (i + 1) * sizeof(char));
-        str[i] = ch;
-        i++;
-    }
-    str = realloc(str, (i + 1) * sizeof(char));
-    str[i] = '\0';
-    *string = str;
-    return value;
-} 
 
-void write_string(int fd, char *string) {
-    int i = 0;
-    char ch;
-    while (string[i] != '\0') {
-        write(fd, &string[i], 1);
-        i++;
-    }
-    write(fd, &string[i], 1);
-}
- 
+int init_socket(const char *ip, int port);
+int read_string(int fd, char **string);
+void write_string(int fd, char *string);
+
 //  http://127.0.0.1:5000/resource/file.html
 
 int main(void) {
@@ -140,3 +83,64 @@ int main(void) {
     close(server);
     return OK;
 }
+
+int init_socket(const char *ip, int port) {
+    int server_socket = socket(AF_INET, SOCK_STREAM, 0);
+    struct hostent *host = gethostbyname(ip);
+    struct sockaddr_in server_address;
+ 
+    //open socket, result is socket descriptor
+    if (server_socket < 0) {
+        perror("Fail: open socket");
+        exit(ERR_SOCKET);
+    }
+ 
+    //prepare server address
+    server_address.sin_family = AF_INET;
+    server_address.sin_port = htons(port);
+    memcpy(&server_address.sin_addr, host -> h_addr_list[0],
+           (socklen_t) sizeof server_address.sin_addr);
+ 
+    //connection
+    if (connect(server_socket, (struct sockaddr*) &server_address,
+        (socklen_t) sizeof server_address) < 0) {
+        perror("Fail: connect");
+        exit(ERR_CONNECT);
+    }
+    return server_socket;
+}
+
+void write_string(int fd, char *string) {
+    int i = 0;
+    char ch;
+    while (string[i] != '\0') {
+        write(fd, &string[i], 1);
+        i++;
+    }
+    write(fd, &string[i], 1);
+}
+
+int read_string(int fd, char **string) {
+    char *str = NULL;
+    char ch;
+    int i = 0, value;
+    while (1) {
+        value = read(fd, &ch, sizeof(char)); 
+        if(value <= 0) {
+            break;
+        }
+        if(ch == '\r') {
+            break;
+        }
+        if(ch == '\n') {
+            continue;
+        }
+        str = realloc(str, (i + 1) * sizeof(char));
+        str[i] = ch;
+        i++;
+    }
+    str = realloc(str, (i + 1) * sizeof(char));
+    str[i] = '\0';
+    *string = str;
+    return value;
+} 
